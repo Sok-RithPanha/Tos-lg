@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Blackjack – 17+</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+    :root {
+      --green:  #35654d;
+      --felt:   #2d5a3d;
+      --gold:   #f5c518;
+      --red:    #c0392b;
+      --dark:   #1a1a2e;
+      --card-w: 72px;
+      --card-h: 100px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--dark);
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════
+       AGE GATE
+    ══════════════════════════════ */
+    #ageGate {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      z-index: 999;
+    }
+
+    .gate-box {
+      border: 3px solid var(--gold);
+      padding: 40px 48px;
+      text-align: center;
+      max-width: 500px;
+      background: #0d0d0d;
+    }
+
+    .gate-box .warning-icon {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 20px;
+    }
+
+    .gate-box h2 {
+      color: var(--gold);
+      font-size: 14px;
+      letter-spacing: 3px;
+      margin-bottom: 16px;
+      line-height: 1.8;
+    }
+
+    .gate-box p {
+      color: #888;
+      font-size: 7px;
+      line-height: 2.4;
+      margin-bottom: 28px;
+    }
+
+    .gate-box .age-label {
+      color: #fff;
+      font-size: 9px;
+      margin-bottom: 20px;
+      line-height: 2;
+    }
+
+    /* Birth year input row */
+    .year-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .year-row label {
+      color: #aaa;
+      font-size: 7px;
+    }
+
+    .year-row input {
+      background: #111;
+      border: 2px solid #555;
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      padding: 10px 14px;
+      width: 120px;
+      text-align: center;
+      outline: none;
+    }
+
+    .year-row input:focus { border-color: var(--gold); }
+
+    /* Age gate buttons */
+    .gate-btns {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    .btn-yes {
+      background: var(--green);
+      border: 2px solid #4caf50;
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 12px 22px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    .btn-yes:hover { background: #4caf50; }
+
+    .btn-no {
+      background: #1a0000;
+      border: 2px solid var(--red);
+      color: var(--red);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 12px 22px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    .btn-no:hover { background: var(--red); color: #fff; }
+
+    /* Error message */
+    #gateError {
+      color: var(--red);
+      font-size: 7px;
+      display: none;
+      text-align: center;
+      line-height: 2;
+    }
+
+    /* Denied screen */
+    #deniedScreen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      text-align: center;
+    }
+    #deniedScreen h2 { color: var(--red); font-size: 13px; line-height: 2; }
+    #deniedScreen p  { color: #666; font-size: 7px; line-height: 2.4; }
+
+    /* ══════════════════════════════
+       GAME WRAPPER
+    ══════════════════════════════ */
+    #gameWrapper {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at center, #2a4a35 0%, #1a1a2e 100%);
+    }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      width: 100%;
+      max-width: 700px;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px 10px;
+    }
+
+    .top-bar h1 {
+      color: var(--gold);
+      font-size: 14px;
+      letter-spacing: 3px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    .chips-display {
+      color: var(--gold);
+      font-size: 9px;
+      line-height: 1.8;
+    }
+
+    .chips-display span {
+      color: #fff;
+      font-size: 12px;
+      display: block;
+    }
+
+    /* ── TABLE ── */
+    .table {
+      width: 100%;
+      max-width: 700px;
+      background: var(--felt);
+      border: 6px solid #1a3d28;
+      border-radius: 12px;
+      padding: 24px 28px;
+      position: relative;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 0 40px rgba(0,0,0,0.2);
+    }
+
+    /* felt texture lines */
+    .table::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 20px,
+        rgba(0,0,0,0.03) 20px,
+        rgba(0,0,0,0.03) 21px
+      );
+      pointer-events: none;
+    }
+
+    /* ── HAND SECTIONS ── */
+    .hand-section { margin-bottom: 20px; }
+
+    .hand-label {
+      color: rgba(255,255,255,0.5);
+      font-size: 7px;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .score-badge {
+      background: rgba(0,0,0,0.4);
+      color: #fff;
+      font-size: 8px;
+      padding: 3px 10px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .score-badge.bust  { color: var(--red); border-color: var(--red); }
+    .score-badge.bj    { color: var(--gold); border-color: var(--gold); }
+
+    /* ── CARDS ROW ── */
+    .cards-row {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: calc(var(--card-h) + 8px);
+    }
+
+    /* ── SINGLE CARD ── */
+    .card {
+      width: var(--card-w);
+      height: var(--card-h);
+      background: #fff;
+      border-radius: 6px;
+      border: 2px solid #ddd;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      box-shadow: 2px 3px 8px rgba(0,0,0,0.4);
+      position: relative;
+      animation: dealCard 0.25s ease-out;
+      font-family: Georgia, serif;
+    }
+
+    @keyframes dealCard {
+      from { transform: translateY(-20px) scale(0.85); opacity: 0; }
+      to   { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .card.red-card { color: var(--red); }
+    .card.black-card { color: #111; }
+
+    .card .top-val { font-size: 13px; line-height: 1; }
+    .card .suit    { font-size: 20px; text-align: center; line-height: 1; margin-top: 4px; }
+    .card .bot-val { font-size: 13px; line-height: 1; text-align: right; transform: rotate(180deg); }
+
+    /* face-down card */
+    .card.facedown {
+      background: repeating-linear-gradient(
+        135deg,
+        #1a3d8f 0px, #1a3d8f 8px,
+        #1a2a6e 8px, #1a2a6e 16px
+      );
+      border: 2px solid #2244aa;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin: 10px 0 20px;
+    }
+
+    /* ── BET SECTION ── */
+    .bet-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .bet-label {
+      color: rgba(255,255,255,0.5);
+      font-size: 7px;
+      letter-spacing: 2px;
+    }
+
+    .current-bet {
+      color: var(--gold);
+      font-size: 18px;
+      text-shadow: 0 0 10px rgba(245,197,24,0.4);
+    }
+
+    /* chip buttons */
+    .chip-row {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .chip {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 4px dashed rgba(255,255,255,0.4);
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s, box-shadow 0.1s;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3);
+    }
+    .chip:hover  { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(0,0,0,0.5); }
+    .chip:active { transform: scale(0.93); }
+
+    .chip-5   { background: #e74c3c; }
+    .chip-10  { background: #2980b9; }
+    .chip-25  { background: #27ae60; }
+    .chip-50  { background: #8e44ad; }
+    .chip-100 { background: #e67e22; }
+
+    .clear-bet {
+      background: transparent;
+      border: 1px solid #555;
+      color: #888;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .clear-bet:hover { border-color: #aaa; color: #fff; }
+
+    /* ── ACTION BUTTONS ── */
+    .action-row {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      background: #1a3d28;
+      border: 2px solid #4caf50;
+      color: #fff;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 12px 18px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.1s;
+    }
+    .action-btn:hover  { background: #4caf50; }
+    .action-btn:active { transform: scale(0.96); }
+    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .action-btn:disabled:hover { background: #1a3d28; }
+
+    .action-btn.deal-btn {
+      background: var(--gold);
+      border-color: #d4a800;
+      color: #000;
+      font-size: 9px;
+      padding: 14px 28px;
+    }
+    .action-btn.deal-btn:hover { background: #ffd700; }
+
+    .action-btn.danger {
+      background: #3d1a1a;
+      border-color: var(--red);
+      color: var(--red);
+    }
+    .action-btn.danger:hover { background: var(--red); color: #fff; }
+
+    /* ── RESULT BANNER ── */
+    #resultBanner {
+      display: none;
+      text-align: center;
+      padding: 14px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      animation: popIn 0.3s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .result-win        { background: rgba(76,175,80,0.25); border: 2px solid #4caf50; color: #4caf50; }
+    .result-lose       { background: rgba(192,57,43,0.25); border: 2px solid var(--red); color: var(--red); }
+    .result-push       { background: rgba(245,197,24,0.15); border: 2px solid var(--gold); color: var(--gold); }
+    .result-blackjack  { background: rgba(245,197,24,0.3); border: 2px solid var(--gold); color: var(--gold); }
+
+    /* ── MESSAGE ── */
+    #statusMsg {
+      text-align: center;
+      color: rgba(255,255,255,0.4);
+      font-size: 7px;
+      margin-top: 10px;
+      min-height: 20px;
+      letter-spacing: 1px;
+    }
+
+    /* ── BUST OVERLAY ── */
+    .bust-flash {
+      animation: bustFlash 0.4s ease-out;
+    }
+    @keyframes bustFlash {
+      0%,100% { background: var(--felt); }
+      50% { background: rgba(192,57,43,0.3); }
+    }
+
+    /* ── BANKRUPT SCREEN ── */
+    #bankruptScreen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 100;
+      text-align: center;
+    }
+    #bankruptScreen h2 { color: var(--red); font-size: 16px; line-height: 2; }
+    #bankruptScreen p  { color: #666; font-size: 7px; line-height: 2.4; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════
+     AGE GATE
+══════════════════════ -->
+<div id="ageGate">
+  <div class="gate-box" id="gateBox">
+    <span class="warning-icon">🔞</span>
+    <h2>AGE VERIFICATION<br>REQUIRED</h2>
+    <p>
+      This game contains gambling content<br>
+      and is intended for players aged<br>
+      17 years and older only.<br><br>
+      By entering, you confirm that you<br>
+      meet the minimum age requirement.
+    </p>
+    <div class="age-label">ENTER YOUR BIRTH YEAR</div>
+    <div class="year-row">
+      <input type="number" id="birthYear" placeholder="YYYY" min="1900" max="2025"/>
+    </div>
+    <div id="gateError">⚠ YOU MUST BE 17 OR OLDER TO PLAY</div>
+    <div class="gate-btns" style="margin-top:16px">
+      <button class="btn-yes" onclick="checkAge()">✔ ENTER</button>
+      <button class="btn-no"  onclick="denyEntry()">✖ EXIT</button>
+    </div>
+  </div>
+
+  <!-- Denied message -->
+  <div id="deniedScreen">
+    <h2>ACCESS DENIED</h2>
+    <p>
+      Sorry, you must be at least 17<br>
+      years old to access this game.<br><br>
+      Please come back when you<br>
+      meet the age requirement.
+    </p>
+    <span style="font-size:48px">🚫</span>
+  </div>
+</div>
+
+<!-- ══════════════════════
+     BLACKJACK GAME
+══════════════════════ -->
+<div id="gameWrapper">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <h1>♠ BLACKJACK</h1>
+    <div class="chips-display">
+      CHIPS
+      <span id="chipsDisplay">$500</span>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table" id="table">
+
+    <!-- RESULT BANNER -->
+    <div id="resultBanner"></div>
+
+    <!-- DEALER HAND -->
+    <div class="hand-section">
+      <div class="hand-label">
+        DEALER
+        <span class="score-badge" id="dealerScore"></span>
+      </div>
+      <div class="cards-row" id="dealerCards"></div>
+    </div>
+
+    <hr class="divider"/>
+
+    <!-- PLAYER HAND -->
+    <div class="hand-section">
+      <div class="hand-label">
+        YOU
+        <span class="score-badge" id="playerScore"></span>
+      </div>
+      <div class="cards-row" id="playerCards"></div>
+    </div>
+
+    <!-- BET SECTION -->
+    <div class="bet-section" id="betSection">
+      <div class="bet-label">PLACE YOUR BET</div>
+      <div class="current-bet" id="betDisplay">$0</div>
+      <div class="chip-row">
+        <button class="chip chip-5"   onclick="addBet(5)">$5</button>
+        <button class="chip chip-10"  onclick="addBet(10)">$10</button>
+        <button class="chip chip-25"  onclick="addBet(25)">$25</button>
+        <button class="chip chip-50"  onclick="addBet(50)">$50</button>
+        <button class="chip chip-100" onclick="addBet(100)">$100</button>
+      </div>
+      <button class="clear-bet" onclick="clearBet()">✖ CLEAR BET</button>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="action-row" id="actionRow">
+      <button class="action-btn deal-btn" id="dealBtn"     onclick="dealHand()">► DEAL</button>
+      <button class="action-btn"          id="hitBtn"      onclick="hit()"      disabled>HIT</button>
+      <button class="action-btn"          id="standBtn"    onclick="stand()"    disabled>STAND</button>
+      <button class="action-btn"          id="doubleBtn"   onclick="doubleDown()" disabled>DOUBLE</button>
+      <button class="action-btn danger"   id="newRoundBtn" onclick="newRound()" style="display:none">NEW HAND</button>
+    </div>
+
+    <div id="statusMsg">PLACE A BET TO BEGIN</div>
+  </div>
+
+</div>
+
+<!-- BANKRUPT SCREEN -->
+<div id="bankruptScreen">
+  <h2>BROKE!</h2>
+  <p>You ran out of chips.<br>Better luck next time!</p>
+  <span style="font-size:48px">💸</span>
+  <button class="action-btn deal-btn" onclick="resetGame()">► NEW GAME</button>
+</div>
+
+<script>
+// ══════════════════════════
+//  AGE GATE LOGIC
+// ══════════════════════════
+function checkAge() {
+  const yr   = parseInt(document.getElementById('birthYear').value);
+  const err  = document.getElementById('gateError');
+  if (!yr || isNaN(yr)) { showError('PLEASE ENTER YOUR BIRTH YEAR'); return; }
+  const age  = new Date().getFullYear() - yr;
+  if (age < 17) { showError('YOU MUST BE 17 OR OLDER TO PLAY'); return; }
+  if (age > 120) { showError('PLEASE ENTER A VALID BIRTH YEAR'); return; }
+  // PASSED
+  document.getElementById('ageGate').style.display = 'none';
+  const gw = document.getElementById('gameWrapper');
+  gw.style.display = 'flex';
+}
+
+function showError(msg) {
+  const err = document.getElementById('gateError');
+  err.textContent = '⚠ ' + msg;
+  err.style.display = 'block';
+  // shake input
+  const inp = document.getElementById('birthYear');
+  inp.style.borderColor = '#c0392b';
+  setTimeout(() => inp.style.borderColor = '#555', 1000);
+}
+
+function denyEntry() {
+  document.getElementById('gateBox').style.display = 'none';
+  document.getElementById('deniedScreen').style.display = 'flex';
+}
+
+// allow pressing Enter in birth year field
+document.getElementById('birthYear').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkAge();
+});
+
+// ══════════════════════════
+//  BLACKJACK GAME LOGIC
+// ══════════════════════════
+const SUITS  = ['♠','♥','♦','♣'];
+const VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const RED_SUITS = ['♥','♦'];
+
+let deck=[], playerHand=[], dealerHand=[];
+let chips=500, bet=0, gamePhase='betting'; // phases: betting | playing | over
+
+function buildDeck() {
+  deck = [];
+  for (let s of SUITS) for (let v of VALUES) deck.push({suit:s, val:v});
+  // shuffle
+  for (let i=deck.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [deck[i],deck[j]]=[deck[j],deck[i]];
+  }
+}
+
+function cardValue(card) {
+  if (['J','Q','K'].includes(card.val)) return 10;
+  if (card.val === 'A') return 11;
+  return parseInt(card.val);
+}
+
+function handTotal(hand) {
+  let total=0, aces=0;
+  for (let c of hand) {
+    total += cardValue(c);
+    if (c.val==='A') aces++;
+  }
+  while (total>21 && aces>0) { total-=10; aces--; }
+  return total;
+}
+
+function isBlackjack(hand) {
+  return hand.length===2 && handTotal(hand)===21;
+}
+
+// ── BET ──
+function addBet(amount) {
+  if (gamePhase !== 'betting') return;
+  if (bet + amount > chips) { setStatus('NOT ENOUGH CHIPS!'); return; }
+  bet += amount;
+  document.getElementById('betDisplay').textContent = '$'+bet;
+  setStatus('GOOD LUCK!');
+}
+
+function clearBet() {
+  if (gamePhase !== 'betting') return;
+  bet = 0;
+  document.getElementById('betDisplay').textContent = '$0';
+  setStatus('PLACE A BET TO BEGIN');
+}
+
+// ── DEAL ──
+function dealHand() {
+  if (bet <= 0) { setStatus('PLACE A BET FIRST!'); return; }
+  if (deck.length < 15) buildDeck();
+
+  gamePhase = 'playing';
+  playerHand = [deck.pop(), deck.pop()];
+  dealerHand = [deck.pop(), deck.pop()];
+
+  hideBetSection(true);
+  document.getElementById('dealBtn').style.display = 'none';
+  document.getElementById('resultBanner').style.display = 'none';
+  document.getElementById('newRoundBtn').style.display = 'none';
+
+  renderHands(true); // dealer hole card hidden
+
+  // check blackjack
+  if (isBlackjack(playerHand)) {
+    setStatus('BLACKJACK!');
+    setTimeout(()=>revealAndSettle(), 800);
+    return;
+  }
+
+  document.getElementById('hitBtn').disabled    = false;
+  document.getElementById('standBtn').disabled  = false;
+  document.getElementById('doubleBtn').disabled = (chips < bet);
+  setStatus('HIT OR STAND?');
+}
+
+// ── HIT ──
+function hit() {
+  playerHand.push(deck.pop());
+  renderHands(true);
+  const total = handTotal(playerHand);
+  updatePlayerScore(total);
+  if (total > 21) {
+    setStatus('BUST!');
+    document.getElementById('table').classList.add('bust-flash');
+    setTimeout(()=>{
+      document.getElementById('table').classList.remove('bust-flash');
+      revealAndSettle();
+    },500);
+  } else if (total === 21) {
+    stand();
+  }
+}
+
+// ── STAND ──
+function stand() {
+  disableActions();
+  revealAndSettle();
+}
+
+// ── DOUBLE DOWN ──
+function doubleDown() {
+  chips -= bet;
+  bet   *= 2;
+  document.getElementById('betDisplay').textContent = '$'+bet;
+  document.getElementById('chipsDisplay').textContent = '$'+chips;
+  playerHand.push(deck.pop());
+  renderHands(true);
+  const total = handTotal(playerHand);
+  updatePlayerScore(total);
+  disableActions();
+  if (total > 21) {
+    setStatus('BUST!');
+    setTimeout(revealAndSettle, 600);
+  } else {
+    revealAndSettle();
+  }
+}
+
+// ── DEALER PLAYS + SETTLE ──
+function revealAndSettle() {
+  disableActions();
+  renderHands(false); // reveal hole card
+  dealerPlay();
+}
+
+function dealerPlay() {
+  // dealer hits to 17
+  function dealerStep() {
+    const dt = handTotal(dealerHand);
+    updateDealerScore(dt, false);
+    if (dt < 17) {
+      dealerHand.push(deck.pop());
+      renderHands(false);
+      setTimeout(dealerStep, 500);
+    } else {
+      settle();
+    }
+  }
+  dealerStep();
+}
+
+function settle() {
+  const p = handTotal(playerHand);
+  const d = handTotal(dealerHand);
+  const banner = document.getElementById('resultBanner');
+  let msg='', cls='';
+
+  if (p > 21) {
+    msg='💀 BUST — YOU LOSE'; cls='result-lose';
+    chips -= 0; // already counted? No, deduct bet
+    chips -= 0; // bet was already subtracted? No — subtract now
+  } else if (isBlackjack(playerHand) && !isBlackjack(dealerHand)) {
+    const win = Math.floor(bet * 1.5);
+    chips += bet + win;
+    msg=`♠ BLACKJACK! +$${bet+win}`; cls='result-blackjack';
+  } else if (d > 21) {
+    chips += bet*2;
+    msg=`🎉 DEALER BUSTS! +$${bet*2}`; cls='result-win';
+  } else if (p > d) {
+    chips += bet*2;
+    msg=`✔ YOU WIN! +$${bet*2}`; cls='result-win';
+  } else if (p < d) {
+    msg=`✖ DEALER WINS — LOST $${bet}`; cls='result-lose';
+  } else {
+    chips += bet; // push — return bet
+    msg=`TIE — PUSH`; cls='result-push';
+  }
+
+  // if bust, player already lost bet (wasn't returned)
+  if (p > 21) { msg=`💀 BUST — LOST $${bet}`; cls='result-lose'; }
+
+  banner.className = cls;
+  banner.textContent = msg;
+  banner.style.display = 'block';
+
+  document.getElementById('chipsDisplay').textContent = '$'+chips;
+  gamePhase = 'over';
+  document.getElementById('newRoundBtn').style.display = 'inline-block';
+  setStatus('');
+
+  if (chips <= 0) {
+    setTimeout(() => {
+      document.getElementById('bankruptScreen').style.display='flex';
+    }, 1800);
+  }
+}
+
+// ── NEW ROUND ──
+function newRound() {
+  bet=0; gamePhase='betting';
+  document.getElementById('betDisplay').textContent='$0';
+  document.getElementById('resultBanner').style.display='none';
+  document.getElementById('dealerCards').innerHTML='';
+  document.getElementById('playerCards').innerHTML='';
+  document.getElementById('dealerScore').textContent='';
+  document.getElementById('playerScore').textContent='';
+  document.getElementById('newRoundBtn').style.display='none';
+  document.getElementById('dealBtn').style.display='inline-block';
+  hideBetSection(false);
+  setStatus('PLACE A BET TO BEGIN');
+}
+
+function resetGame() {
+  chips=500;
+  document.getElementById('bankruptScreen').style.display='none';
+  document.getElementById('chipsDisplay').textContent='$500';
+  newRound();
+}
+
+// ── RENDER ──
+function renderHands(hideHole) {
+  renderCards('dealerCards', dealerHand, hideHole);
+  renderCards('playerCards', playerHand, false);
+  updatePlayerScore(handTotal(playerHand));
+  updateDealerScore(handTotal(dealerHand), hideHole);
+}
+
+function renderCards(containerId, hand, hideHole) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  hand.forEach((card, i) => {
+    if (i===0 && hideHole) {
+      c.appendChild(makeCardBack());
+    } else {
+      c.appendChild(makeCard(card));
+    }
+  });
+}
+
+function makeCard(card) {
+  const isRed = RED_SUITS.includes(card.suit);
+  const div = document.createElement('div');
+  div.className = 'card ' + (isRed ? 'red-card' : 'black-card');
+  div.innerHTML = `
+    <div class="top-val">${card.val}<br>${card.suit}</div>
+    <div class="suit">${card.suit}</div>
+    <div class="bot-val">${card.val}<br>${card.suit}</div>
+  `;
+  return div;
+}
+
+function makeCardBack() {
+  const div = document.createElement('div');
+  div.className = 'card facedown';
+  return div;
+}
+
+function updatePlayerScore(total) {
+  const el = document.getElementById('playerScore');
+  el.textContent = total;
+  el.className = 'score-badge' + (total>21?' bust':total===21&&playerHand.length===2?' bj':'');
+}
+
+function updateDealerScore(total, hidden) {
+  const el = document.getElementById('dealerScore');
+  if (hidden) {
+    el.textContent = cardValue(dealerHand[1]) + '+?';
+    el.className = 'score-badge';
+  } else {
+    el.textContent = total;
+    el.className = 'score-badge' + (total>21?' bust':'');
+  }
+}
+
+function disableActions() {
+  document.getElementById('hitBtn').disabled    = true;
+  document.getElementById('standBtn').disabled  = true;
+  document.getElementById('doubleBtn').disabled = true;
+}
+
+function hideBetSection(hide) {
+  document.getElementById('betSection').style.display = hide ? 'none' : 'flex';
+}
+
+function setStatus(msg) {
+  document.getElementById('statusMsg').textContent = msg;
+}
+
+// ── INIT ──
+buildDeck();
+</script>
+</body>
+</html>

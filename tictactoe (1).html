@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tic Tac Toe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #000000;
+      --panel: #11111e;
+      --x-color: #ff3e6c;
+      --o-color: #00e5ff;
+      --grid-line: #1e1e3a;
+      --glow-x: 0 0 10px #ff3e6c88, 0 0 30px #ff3e6c44;
+      --glow-o: 0 0 10px #00e5ff88, 0 0 30px #00e5ff44;
+      --text: #e0e0f0;
+      --muted: #44445a;
+      --accent: #7c3aed;
+      --win-flash: #ffd600;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.18) 3px,
+        rgba(0,0,0,0.18) 4px
+      );
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    /* Star field */
+    .stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .stars span {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0;
+      animation: twinkle var(--d, 3s) var(--delay, 0s) infinite;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0; }
+      50% { opacity: var(--op, 0.5); }
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+    }
+    .game-title {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--x-color) 0%, var(--o-color) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 18px #ff3e6c66) drop-shadow(0 0 36px #00e5ff44);
+      animation: titlePulse 4s ease-in-out infinite;
+    }
+    @keyframes titlePulse {
+      0%, 100% { filter: drop-shadow(0 0 18px #ff3e6c66) drop-shadow(0 0 36px #00e5ff44); }
+      50% { filter: drop-shadow(0 0 28px #ff3e6caa) drop-shadow(0 0 52px #00e5ff77); }
+    }
+    .subtitle {
+      font-size: 0.75rem;
+      letter-spacing: 0.3em;
+      color: var(--muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+    }
+
+    /* Score board */
+    .scoreboard {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+    }
+    .score-card {
+      background: var(--panel);
+      border: 1px solid var(--grid-line);
+      border-radius: 8px;
+      padding: 10px 22px;
+      text-align: center;
+      min-width: 90px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .score-card.active-x { border-color: var(--x-color); box-shadow: 0 0 12px #ff3e6c44 inset; }
+    .score-card.active-o { border-color: var(--o-color); box-shadow: 0 0 12px #00e5ff44 inset; }
+    .score-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .score-player {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 2px 0;
+    }
+    .score-player.x { color: var(--x-color); text-shadow: var(--glow-x); }
+    .score-player.o { color: var(--o-color); text-shadow: var(--glow-o); }
+    .score-val {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 900;
+    }
+    .score-val.x { color: var(--x-color); }
+    .score-val.o { color: var(--o-color); }
+    .score-val.d { color: var(--muted); }
+
+    .vs-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+      padding: 4px 8px;
+      border: 1px solid var(--grid-line);
+      border-radius: 4px;
+    }
+
+    /* Status bar */
+    .status-bar {
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      height: 22px;
+      color: var(--muted);
+      transition: color 0.3s;
+    }
+    .status-bar.x-turn { color: var(--x-color); text-shadow: var(--glow-x); }
+    .status-bar.o-turn { color: var(--o-color); text-shadow: var(--glow-o); }
+    .status-bar.win { color: var(--win-flash); animation: flashWin 0.6s ease-in-out 3; }
+    .status-bar.draw { color: var(--muted); }
+    @keyframes flashWin {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Game board */
+    .board-wrap {
+      position: relative;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 110px);
+      grid-template-rows: repeat(3, 110px);
+      gap: 0;
+      position: relative;
+    }
+
+    /* Grid lines drawn via pseudo */
+    .board::before, .board::after,
+    .vline1, .vline2, .hline1, .hline2 {
+      content: '';
+      position: absolute;
+      background: var(--grid-line);
+      border-radius: 2px;
+    }
+    .vline1 { width: 2px; height: 100%; left: calc(110px - 1px); top: 0; }
+    .vline2 { width: 2px; height: 100%; left: calc(220px - 1px); top: 0; }
+    .hline1 { height: 2px; width: 100%; top: calc(110px - 1px); left: 0; }
+    .hline2 { height: 2px; width: 100%; top: calc(220px - 1px); left: 0; }
+
+    /* Win line overlay */
+    .win-line {
+      position: absolute;
+      background: var(--win-flash);
+      box-shadow: 0 0 12px var(--win-flash), 0 0 30px var(--win-flash);
+      border-radius: 4px;
+      transform-origin: left center;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .win-line.show { opacity: 1; animation: drawLine 0.35s ease-out forwards; }
+    @keyframes drawLine {
+      from { transform: scaleX(0) var(--extra-transform, rotate(0deg)); }
+      to   { transform: scaleX(1) var(--extra-transform, rotate(0deg)); }
+    }
+
+    /* Cells */
+    .cell {
+      width: 110px;
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.15s;
+    }
+    .cell:hover:not(.taken) { background: rgba(255,255,255,0.03); }
+    .cell:hover:not(.taken)::after {
+      content: attr(data-hover);
+      position: absolute;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 900;
+      opacity: 0.12;
+      pointer-events: none;
+    }
+    .cell.taken { cursor: default; }
+
+    /* X mark */
+    .mark {
+      position: relative;
+      width: 60px;
+      height: 60px;
+      opacity: 1;
+      transition: opacity 0.25s ease, transform 0.25s ease, filter 0.25s ease;
+      will-change: opacity, transform, filter;
+    }
+    .mark.recent { opacity: 1; filter: none; }
+    .mark.fade-1 { opacity: 0.75; filter: saturate(0.9); }
+    .mark.fade-2 { opacity: 0.5; filter: saturate(0.75); }
+    .mark.fade-3 { opacity: 0.25; filter: saturate(0.6); }
+    .mark.fade-4 { opacity: 0.12; filter: saturate(0.45); }
+    .mark.hidden { opacity: 0; transform: scale(0.9); filter: blur(0.5px); }
+    .mark.x-mark::before,
+    .mark.x-mark::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 5px;
+      background: var(--x-color);
+      border-radius: 3px;
+      top: 50%;
+      left: 0;
+      box-shadow: var(--glow-x);
+      transform-origin: center;
+      animation: drawX 0.2s ease-out forwards;
+    }
+    .mark.x-mark::before { transform: translateY(-50%) rotate(45deg); }
+    .mark.x-mark::after  { transform: translateY(-50%) rotate(-45deg); }
+    @keyframes drawX {
+      from { width: 0; left: 50%; opacity: 0; }
+      to   { width: 100%; left: 0; opacity: 1; }
+    }
+
+    /* O mark */
+    .mark.o-mark {
+      border: 5px solid var(--o-color);
+      border-radius: 50%;
+      box-shadow: var(--glow-o), 0 0 0 2px transparent inset;
+      animation: drawO 0.25s ease-out;
+    }
+    @keyframes drawO {
+      from { transform: scale(0.35); }
+      to   { transform: scale(1); }
+    }
+
+    /* Winning cell highlight */
+    .cell.winner .mark.x-mark::before,
+    .cell.winner .mark.x-mark::after {
+      background: var(--win-flash);
+      box-shadow: 0 0 16px var(--win-flash);
+    }
+    .cell.winner .mark.o-mark {
+      border-color: var(--win-flash);
+      box-shadow: 0 0 16px var(--win-flash);
+    }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 12px; }
+    .btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 10px 22px;
+      border-radius: 6px;
+      border: 1px solid var(--grid-line);
+      background: var(--panel);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 10px #7c3aed66;
+    }
+    .btn.primary {
+      border-color: var(--x-color);
+      color: var(--x-color);
+    }
+    .btn.primary:hover {
+      background: var(--x-color);
+      color: #0a0a12;
+      box-shadow: var(--glow-x);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="stars" id="stars"></div>
+
+<div class="wrapper">
+  <header>
+    <div class="game-title">TIC TAC TOE</div>
+    <div class="subtitle">// 2-Player (Local Pass-and-Play) //</div>
+  </header>
+
+  <div class="scoreboard">
+    <div class="score-card" id="card-x">
+      <div class="score-label">Player 1</div>
+      <div class="score-player x">X</div>
+      <div class="score-val x" id="score-x">0</div>
+    </div>
+    <div class="vs-badge">VS</div>
+    <div class="score-card" id="card-draw">
+      <div class="score-label">Draws</div>
+      <div class="score-player" style="color:var(--muted)">—</div>
+      <div class="score-val d" id="score-d">0</div>
+    </div>
+    <div class="vs-badge">VS</div>
+    <div class="score-card" id="card-o">
+      <div class="score-label">Player 2</div>
+      <div class="score-player o">O</div>
+      <div class="score-val o" id="score-o">0</div>
+    </div>
+  </div>
+
+  <div class="status-bar x-turn" id="status">Player 1 (X) turn</div>
+
+  <div class="board-wrap">
+    <div class="board" id="board">
+      <!-- Grid lines -->
+      <div class="vline1"></div>
+      <div class="vline2"></div>
+      <div class="hline1"></div>
+      <div class="hline2"></div>
+      <!-- Cells -->
+      <div class="cell" data-i="0"></div>
+      <div class="cell" data-i="1"></div>
+      <div class="cell" data-i="2"></div>
+      <div class="cell" data-i="3"></div>
+      <div class="cell" data-i="4"></div>
+      <div class="cell" data-i="5"></div>
+      <div class="cell" data-i="6"></div>
+      <div class="cell" data-i="7"></div>
+      <div class="cell" data-i="8"></div>
+      <!-- Win line overlay -->
+      <div class="win-line" id="win-line"></div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn primary" id="btn-reset">New Round</button>
+    <button class="btn" id="btn-clear">Clear Scores</button>
+  </div>
+</div>
+
+<script>
+  /* Stars */
+  const starEl = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('span');
+    s.style.cssText = `
+      left:${Math.random()*100}%;
+      top:${Math.random()*100}%;
+      --d:${2+Math.random()*4}s;
+      --delay:${Math.random()*5}s;
+      --op:${0.2+Math.random()*0.6};
+    `;
+    starEl.appendChild(s);
+  }
+
+  /* Game logic */
+  const WINS = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  const PLAYER_X = 'X';
+  const PLAYER_O = 'O';
+
+  let board = Array(9).fill(null);
+  let moveOrder = [];
+  let gameOver = false;
+  let currentPlayer = PLAYER_X;
+  let scores = { X: 0, O: 0, D: 0 };
+  let autoResetTimer = null;
+
+  const cells = document.querySelectorAll('.cell');
+  const status = document.getElementById('status');
+  const winLine = document.getElementById('win-line');
+  const cardX = document.getElementById('card-x');
+  const cardO = document.getElementById('card-o');
+
+  function updateHoverSymbols() {
+    cells.forEach(c => c.setAttribute('data-hover', currentPlayer));
+  }
+
+  function render() {
+    cells.forEach((cell, i) => {
+      cell.innerHTML = '';
+      cell.classList.remove('taken', 'winner');
+      if (board[i]) {
+        cell.classList.add('taken');
+        const mark = document.createElement('div');
+        mark.className = `mark ${board[i] === PLAYER_X ? 'x-mark' : 'o-mark'}`;
+        const moveIndex = moveOrder.lastIndexOf(i);
+        const ageFromNewest = moveIndex === -1 ? 99 : moveOrder.length - 1 - moveIndex;
+        if (ageFromNewest === 0) {
+          mark.classList.add('recent');
+        } else if (ageFromNewest === 1) {
+          mark.classList.add('fade-1');
+        } else if (ageFromNewest === 2) {
+          mark.classList.add('fade-2');
+        } else if (ageFromNewest === 3) {
+          mark.classList.add('fade-3');
+        } else if (ageFromNewest === 4) {
+          mark.classList.add('fade-4');
+        } else {
+          mark.classList.add('hidden');
+        }
+        cell.appendChild(mark);
+      }
+    });
+  }
+
+  function recordMove(index) {
+    moveOrder = moveOrder.filter(moveIndex => moveIndex !== index);
+    moveOrder.push(index);
+  }
+
+  function pruneMoveHistory() {
+    while (moveOrder.length > 5) {
+      const oldestIndex = moveOrder.shift();
+      if (oldestIndex === undefined) break;
+      board[oldestIndex] = null;
+    }
+  }
+
+  function setStatus(msg, cls) {
+    status.textContent = msg;
+    status.className = 'status-bar ' + cls;
+  }
+
+  function updateScoreUI() {
+    document.getElementById('score-x').textContent = scores.X;
+    document.getElementById('score-o').textContent = scores.O;
+    document.getElementById('score-d').textContent = scores.D;
+  }
+
+  function highlightActiveCard(whose) {
+    cardX.className = 'score-card' + (whose === PLAYER_X && !gameOver ? ' active-x' : '');
+    cardO.className = 'score-card' + (whose === PLAYER_O && !gameOver ? ' active-o' : '');
+  }
+
+  function drawWinLine(combo) {
+    const boardEl = document.getElementById('board');
+    const bRect = boardEl.getBoundingClientRect();
+    const getCellCenter = idx => {
+      const c = cells[idx].getBoundingClientRect();
+      return { x: c.left + c.width/2 - bRect.left, y: c.top + c.height/2 - bRect.top };
+    };
+    const a = getCellCenter(combo[0]);
+    const b = getCellCenter(combo[2]);
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+    winLine.style.cssText = `
+      position:absolute; width:${len}px; height:5px;
+      left:${a.x}px; top:${a.y - 2.5}px;
+      transform-origin:0 50%;
+      --extra-transform:rotate(${angle}deg);
+      transform:scaleX(0) rotate(${angle}deg);
+    `;
+    winLine.classList.add('show');
+  }
+
+  function checkResult(b) {
+    for (const combo of WINS) {
+      const [a,c,d] = combo;
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) return { winner: b[a], combo };
+    }
+    if (b.every(v => v !== null)) return { winner: 'draw' };
+    return null;
+  }
+
+  function endGame(result) {
+    gameOver = true;
+    winLine.classList.remove('show');
+    cardX.className = 'score-card';
+    cardO.className = 'score-card';
+    if (result.winner === 'draw') {
+      scores.D++;
+      setStatus("Draw! Well played.", 'draw');
+    } else if (result.winner === PLAYER_X) {
+      scores.X++;
+      setStatus("Player 1 (X) wins!", 'win');
+      result.combo.forEach(idx => cells[idx].classList.add('winner'));
+      setTimeout(() => drawWinLine(result.combo), 50);
+    } else {
+      scores.O++;
+      setStatus("Player 2 (O) wins!", 'win');
+      result.combo.forEach(idx => cells[idx].classList.add('winner'));
+      setTimeout(() => drawWinLine(result.combo), 50);
+    }
+    updateScoreUI();
+    clearTimeout(autoResetTimer);
+    autoResetTimer = setTimeout(resetRound, 1200);
+  }
+
+  function handleClick(e) {
+    const i = parseInt(e.currentTarget.dataset.i);
+    if (gameOver || board[i]) return;
+
+    board[i] = currentPlayer;
+    recordMove(i);
+    pruneMoveHistory();
+    render();
+
+    const result = checkResult(board);
+    if (result) {
+      endGame(result);
+      return;
+    }
+
+    currentPlayer = currentPlayer === PLAYER_X ? PLAYER_O : PLAYER_X;
+    const isXTurn = currentPlayer === PLAYER_X;
+    setStatus(isXTurn ? "Player 1 (X) turn" : "Player 2 (O) turn", isXTurn ? 'x-turn' : 'o-turn');
+    highlightActiveCard(currentPlayer);
+    updateHoverSymbols();
+  }
+
+  cells.forEach(c => c.addEventListener('click', handleClick));
+
+  function resetRound() {
+    clearTimeout(autoResetTimer);
+    board = Array(9).fill(null);
+    moveOrder = [];
+    gameOver = false;
+    currentPlayer = PLAYER_X;
+    winLine.classList.remove('show');
+    render();
+    updateHoverSymbols();
+    setStatus("Player 1 (X) turn", 'x-turn');
+    highlightActiveCard(PLAYER_X);
+  }
+
+  document.getElementById('btn-reset').addEventListener('click', resetRound);
+
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    clearTimeout(autoResetTimer);
+    scores = { X: 0, O: 0, D: 0 };
+    updateScoreUI();
+    resetRound();
+  });
+
+  /* Init */
+  updateHoverSymbols();
+  highlightActiveCard(PLAYER_X);
+</script>
+</body>
+</html>

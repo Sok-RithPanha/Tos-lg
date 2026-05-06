@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Klaklok - 3 Dice Game</title>
+	<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg: #08080d;
+			--panel: #11111b;
+			--ink: #e8f9ff;
+			--accent: #38f27d;
+			--accent-2: #00d5ff;
+			--warn: #ff3e7f;
+			--line: #213445;
+		}
+
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+
+		body {
+			min-height: 100vh;
+			font-family: "Press Start 2P", monospace;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at 12% 14%, #13252f 0%, transparent 30%),
+				radial-gradient(circle at 88% 8%, #1b1a33 0%, transparent 28%),
+				linear-gradient(160deg, #05050a, var(--bg));
+			display: grid;
+			place-items: center;
+			padding: 18px;
+			overflow-x: hidden;
+			position: relative;
+		}
+
+		body::before {
+			content: "";
+			position: fixed;
+			inset: 0;
+			background: repeating-linear-gradient(
+				to bottom,
+				transparent 0px,
+				transparent 3px,
+				rgba(0, 0, 0, 0.18) 3px,
+				rgba(0, 0, 0, 0.18) 4px
+			);
+			pointer-events: none;
+			z-index: 9;
+		}
+
+		body::after {
+			content: "";
+			position: fixed;
+			inset: 0;
+			background-image:
+				radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+				radial-gradient(rgba(0, 213, 255, 0.04) 1px, transparent 1px);
+			background-size: 3px 3px, 5px 5px;
+			background-position: 0 0, 1px 2px;
+			opacity: 0.2;
+			mix-blend-mode: screen;
+			animation: crtNoise 0.22s steps(2) infinite;
+			pointer-events: none;
+			z-index: 8;
+		}
+
+		.game {
+			width: min(900px, 100%);
+			background: linear-gradient(180deg, #11121d, var(--panel));
+			border: 3px solid var(--accent);
+			border-radius: 0;
+			padding: 24px;
+			box-shadow:
+				0 0 14px rgba(56, 242, 125, 0.6),
+				0 0 28px rgba(56, 242, 125, 0.28),
+				inset 0 0 18px rgba(0, 213, 255, 0.06);
+			position: relative;
+			z-index: 1;
+		}
+
+		.hero-image {
+			width: 100%;
+			max-width: 420px;
+			display: block;
+			margin: 0 auto 18px;
+			border-radius: 16px;
+			border: 2px solid var(--line);
+			background: #fff;
+			padding: 12px;
+			box-shadow: 0 10px 24px rgba(59, 40, 19, 0.08);
+		}
+
+		h1 {
+			font-size: clamp(1rem, 2.3vw, 1.5rem);
+			letter-spacing: 0.2em;
+			text-transform: uppercase;
+			line-height: 1.5;
+			color: var(--accent);
+			text-shadow: 0 0 8px rgba(56, 242, 125, 0.75);
+			margin-bottom: 10px;
+			animation: titleFlicker 4.6s infinite;
+		}
+
+		@keyframes titleFlicker {
+			0%, 95%, 100% { opacity: 1; }
+			96% { opacity: 0.72; }
+			97% { opacity: 1; }
+			98% { opacity: 0.55; }
+			99% { opacity: 1; }
+		}
+
+		@keyframes crtNoise {
+			0% { transform: translate(0, 0); }
+			25% { transform: translate(-1px, 1px); }
+			50% { transform: translate(1px, -1px); }
+			75% { transform: translate(1px, 1px); }
+			100% { transform: translate(0, 0); }
+		}
+
+		.subtitle {
+			margin: 10px 0 18px;
+			color: #86a2b8;
+			line-height: 1.8;
+			font-size: 0.62rem;
+		}
+
+		.outcomes {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+			gap: 9px;
+			margin-bottom: 20px;
+		}
+
+		.outcome {
+			border: 2px solid var(--line);
+			border-radius: 0;
+			padding: 10px 8px;
+			text-align: center;
+			background: #0e1420;
+			font-weight: 700;
+			cursor: pointer;
+			font-family: inherit;
+			color: #cfe7f8;
+			transition: transform 0.12s steps(2), border-color 0.2s ease, box-shadow 0.2s ease;
+		}
+
+		.outcome:hover {
+			transform: translateY(-2px);
+			border-color: var(--accent-2);
+			box-shadow: 0 0 10px rgba(0, 213, 255, 0.35);
+		}
+
+		.outcome.selected {
+			border-color: var(--accent);
+			box-shadow: 0 0 10px rgba(56, 242, 125, 0.45), inset 0 0 14px rgba(56, 242, 125, 0.12);
+			background: #102419;
+		}
+
+		.outcome-img {
+			display: block;
+			width: 48px;
+			height: 48px;
+			margin: 0 auto 6px;
+			object-fit: contain;
+			image-rendering: pixelated;
+		}
+
+		.outcome-title {
+			display: block;
+			font-size: 0.6rem;
+			line-height: 1.5;
+		}
+
+		.outcome-index {
+			display: block;
+			font-size: 0.56rem;
+			color: #4e7790;
+			margin-top: 4px;
+		}
+
+		.dice-row {
+			display: grid;
+			grid-template-columns: repeat(3, minmax(80px, 1fr));
+			gap: 12px;
+			margin-bottom: 20px;
+		}
+
+		.die {
+			border: 2px solid #2e445a;
+			border-radius: 0;
+			background: #0b1018;
+			min-height: 100px;
+			display: grid;
+			place-items: center;
+			padding: 8px;
+			transition: transform 0.12s steps(2), box-shadow 0.2s ease;
+			box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+		}
+
+		.die-value {
+			text-align: center;
+		}
+
+		.die-number {
+			font-size: 1rem;
+			font-weight: 900;
+			color: var(--accent-2);
+			text-shadow: 0 0 8px rgba(0, 213, 255, 0.4);
+			margin-top: 3px;
+		}
+
+		.die-label {
+			margin-top: 6px;
+			font-size: 0.56rem;
+			line-height: 1.4;
+			color: #a7c2d9;
+		}
+
+		.controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: center;
+			margin-bottom: 18px;
+		}
+
+		button {
+			border: 2px solid var(--accent);
+			border-radius: 0;
+			padding: 12px 16px;
+			font-size: 0.62rem;
+			font-weight: 800;
+			font-family: inherit;
+			letter-spacing: 0.08em;
+			cursor: pointer;
+			color: var(--accent);
+			background: #0a1218;
+			box-shadow: 0 0 10px rgba(56, 242, 125, 0.3), inset 0 0 10px rgba(56, 242, 125, 0.08);
+			text-transform: uppercase;
+		}
+
+		button:hover {
+			background: var(--accent);
+			color: #06110a;
+			text-shadow: none;
+		}
+
+		button:active {
+			transform: translateY(1px);
+		}
+
+		.status {
+			font-weight: 700;
+			padding: 8px 12px;
+			border: 2px dashed #2d4861;
+			border-radius: 0;
+			background: #0a121d;
+			font-size: 0.57rem;
+			line-height: 1.7;
+			color: #9ab7cd;
+		}
+
+		.wallet {
+			font-weight: 800;
+			padding: 8px 12px;
+			border-radius: 0;
+			background: #1a0f1e;
+			border: 2px solid var(--warn);
+			color: #ff9ec7;
+			font-size: 0.6rem;
+			text-shadow: 0 0 8px rgba(255, 62, 127, 0.28);
+		}
+		.stats {
+			margin-top: 10px;
+			border-top: 2px solid var(--line);
+			padding-top: 14px;
+		}
+
+		.stats h2 {
+			margin: 0 0 10px;
+			font-size: 0.75rem;
+			color: var(--accent-2);
+			letter-spacing: 0.08em;
+		}
+
+		.stat-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+			gap: 8px;
+		}
+
+		.stat-item {
+			border: 1px solid var(--line);
+			border-radius: 0;
+			background: #0b121d;
+			padding: 8px;
+			text-align: left;
+			font-size: 0.56rem;
+			line-height: 1.6;
+			color: #b8d2e7;
+		}
+
+		.stat-row {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+
+		.stat-icon {
+			width: 24px;
+			height: 24px;
+			object-fit: contain;
+			flex: 0 0 auto;
+			image-rendering: pixelated;
+		}
+
+		.result-icons {
+			display: inline-flex;
+			gap: 6px;
+			vertical-align: middle;
+		}
+
+		.result-icon {
+			width: 20px;
+			height: 20px;
+			object-fit: contain;
+			vertical-align: middle;
+			image-rendering: pixelated;
+		}
+
+		.history {
+			margin-top: 16px;
+			border-top: 2px solid var(--line);
+			padding-top: 14px;
+		}
+
+		.history h2 {
+			margin: 0 0 10px;
+			font-size: 0.75rem;
+			color: var(--accent-2);
+			letter-spacing: 0.08em;
+		}
+
+		#historyList {
+			margin: 0;
+			padding-left: 20px;
+			line-height: 1.8;
+			font-size: 0.55rem;
+			color: #9cb7cd;
+			max-height: 180px;
+			overflow: auto;
+		}
+
+		#historyList li {
+			margin-bottom: 8px;
+		}
+
+		@media (max-width: 520px) {
+			.game {
+				padding: 16px;
+			}
+
+			h1 {
+				font-size: 0.9rem;
+				line-height: 1.6;
+			}
+
+			.subtitle {
+				font-size: 0.55rem;
+			}
+
+			.die {
+				min-height: 85px;
+			}
+
+			.controls {
+				gap: 8px;
+			}
+
+			button,
+			.wallet,
+			.status {
+				width: 100%;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main class="game">
+		
+		<h1>Klaklok Dice Game</h1>
+		<p class="subtitle">
+			6 possible outcomes, 3 dice. Each die lands on one outcome at random.
+		</p>
+
+		<section class="outcomes" id="outcomes"></section>
+
+		<section class="dice-row">
+			<article class="die" id="die1">
+				<div class="die-value">
+					<div class="die-number">1</div>
+					<div class="die-label">Gourd</div>
+				</div>
+			</article>
+			<article class="die" id="die2">
+				<div class="die-value">
+					<div class="die-number">1</div>
+					<div class="die-label">Gourd</div>
+				</div>
+			</article>
+			<article class="die" id="die3">
+				<div class="die-value">
+					<div class="die-number">1</div>
+					<div class="die-label">Gourd</div>
+				</div>
+			</article>
+		</section>
+
+		<section class="controls">
+			<button id="rollBtn" type="button">Roll 3 Dice</button>
+			<div class="wallet" id="balanceText">Balance: 100 coins</div>
+			<div class="status" id="statusText">Press "Roll 3 Dice" to start.</div>
+		</section>
+
+		<section class="stats">
+			<h2>Outcome Frequency</h2>
+			<div class="stat-grid" id="statGrid"></div>
+		</section>
+
+		<section class="history">
+			<h2>Roll History</h2>
+			<ol id="historyList"></ol>
+		</section>
+	</main>
+
+	<script>
+		const outcomeData = [
+			{ name: "Gourd", image: "assets/gourd.png" },
+			{ name: "Crab", image: "assets/crab.png" },
+			{ name: "Fish", image: "assets/fish.png" },
+			{ name: "Shrimp", image: "assets/shrimp.png" },
+			{ name: "Rooster", image: "assets/rooster.png" },
+			{ name: "Tiger", image: "assets/tiger.png" }
+		];
+		const outcomes = outcomeData.map((item) => item.name);
+		const outcomeCount = Object.fromEntries(outcomes.map((name) => [name, 0]));
+		const selectedBets = new Set();
+		let balance = 100;
+		const betCost = 10;
+		const diceElements = [
+			document.getElementById("die1"),
+			document.getElementById("die2"),
+			document.getElementById("die3")
+		];
+
+		const outcomesContainer = document.getElementById("outcomes");
+		const statGrid = document.getElementById("statGrid");
+		const historyList = document.getElementById("historyList");
+		const rollBtn = document.getElementById("rollBtn");
+		const statusText = document.getElementById("statusText");
+		const balanceText = document.getElementById("balanceText");
+
+		// Return the outcome object (name + image) for a given outcome name.
+		function getOutcomeByName(name) {
+			return outcomeData.find((item) => item.name === name);
+		}
+
+		// Draw the six selectable outcome cards and wire click handlers.
+		function renderOutcomeList() {
+			// Rebuild outcome card buttons based on current selected bets.
+			outcomesContainer.innerHTML = outcomeData
+				.map((item, index) => `
+					<button class="outcome ${selectedBets.has(item.name) ? "selected" : ""}" type="button" data-name="${item.name}">
+						<img class="outcome-img" src="${item.image}" alt="${item.name}">
+						<span class="outcome-title">${item.name}</span>
+						<span class="outcome-index">${index + 1}</span>
+					</button>
+				`)
+				.join("");
+
+			// Toggle selected state when a card is clicked, then refresh UI + status.
+			outcomesContainer.querySelectorAll(".outcome").forEach((button) => {
+				button.addEventListener("click", () => {
+					// Get selected outcome name from the clicked button data attribute.
+					const name = button.dataset.name;
+					// Add bet if not selected yet; remove bet if already selected.
+					if (selectedBets.has(name)) {
+						selectedBets.delete(name);
+					} else {
+						selectedBets.add(name);
+					}
+					// Re-render to show highlighted selections immediately.
+					renderOutcomeList();
+					// Build status text and total cost for all selected bets.
+					const selectedList = [...selectedBets].join(", ");
+					const totalCost = selectedBets.size * betCost;
+					statusText.textContent = selectedBets.size
+						? `Bets: ${selectedList}. Roll to play (${totalCost} coins).`
+						: "No bet selected. Choose one or more outcomes.";
+				});
+			});
+		}
+
+		// Render the frequency stats panel for all outcomes.
+		function renderStats() {
+			statGrid.innerHTML = outcomeData
+				.map((item) => `
+					<div class="stat-item">
+						<div class="stat-row">
+							<img class="stat-icon" src="${item.image}" alt="${item.name}">
+							<span>${item.name}: ${outcomeCount[item.name]}</span>
+						</div>
+					</div>
+				`)
+				.join("");
+		}
+
+		// Return a random die value from 1 to 6.
+		function randomDieValue() {
+			return Math.floor(Math.random() * 6) + 1;
+		}
+
+		// Update one die card UI with the image, number, and label for the rolled value.
+		function updateDieFace(dieElement, value) {
+			// Map numeric value to outcome name/image arrays.
+			const label = outcomes[value - 1];
+			const image = outcomeData[value - 1].image;
+			// Replace die contents with the latest outcome result.
+			dieElement.innerHTML = `
+				<div class="die-value">
+					<img class="outcome-img" src="${image}" alt="${label}" style="width:40px;height:40px;margin-bottom:4px;">
+					<div class="die-number">${value}</div>
+					<div class="die-label">${label}</div>
+				</div>
+			`;
+			// Small scale animation for roll feedback.
+			dieElement.style.transform = "scale(1.03)";
+			setTimeout(() => {
+				dieElement.style.transform = "scale(1)";
+			}, 100);
+			// Return outcome label so caller can compute hits and stats.
+			return label;
+		}
+
+		// Roll all 3 dice and return an array of rolled outcome labels.
+		function rollAllDice() {
+			return diceElements.map((die) => {
+				const value = randomDieValue();
+				return updateDieFace(die, value);
+			});
+		}
+
+		// Increase frequency counters for each rolled outcome, then refresh stats UI.
+		function updateOutcomeCounts(labels) {
+			labels.forEach((name) => {
+				outcomeCount[name] += 1;
+			});
+			renderStats();
+		}
+
+		// Calculate hits and winnings for the currently selected bets.
+		function calculateBetResult(labels, selectedList) {
+			// Count how many times each selected bet appears in rolled labels.
+			const hitByBet = selectedList.map((betName) => {
+				const hits = labels.filter((name) => name === betName).length;
+				return { betName, hits };
+			});
+			// Sum all hits across selected bets and compute payout.
+			const totalHits = hitByBet.reduce((sum, item) => sum + item.hits, 0);
+			const winCoins = totalHits * 20;
+			// Format a readable hit summary for history output.
+			const hitSummary = hitByBet.map((item) => `${item.betName}:${item.hits}`).join(", ");
+			return { totalHits, winCoins, hitSummary };
+		}
+
+		// Add one result row to roll history with icons, selected bets, and payout.
+		function renderRollHistory(labels, selectedList, hitSummary, winCoins) {
+			const entry = document.createElement("li");
+			// Convert rolled labels into icon tags for visual result display.
+			const rolledIcons = labels
+				.map((name) => {
+					const item = getOutcomeByName(name);
+					return `<img class="result-icon" src="${item.image}" alt="${name}" title="${name}">`;
+				})
+				.join("");
+			// Compose full history line and add it at the top of the list.
+			entry.innerHTML = `<span class="result-icons">${rolledIcons}</span> | Bets: ${selectedList.join(", ")} | Hits: ${hitSummary} | ${winCoins > 0 ? `Win +${winCoins}` : "No win"}`;
+			historyList.prepend(entry);
+		}
+
+		// Show current round summary in the status area.
+		function renderRoundStatus(labels, selectedList, totalHits, totalBet, winCoins) {
+			statusText.textContent = `You rolled: ${labels.join(" - ")} | Bets: ${selectedList.join(", ")} | Total hits: ${totalHits} | Bet cost: ${totalBet} | ${winCoins > 0 ? `You won ${winCoins} coins!` : "Try again."}`;
+		}
+
+		// Main game action: validate bet, roll dice, calculate result, update UI/balance.
+		function rollDice() {
+			// Prevent roll if player has not selected any bet.
+			if (selectedBets.size === 0) {
+				statusText.textContent = "Choose one or more outcome cards first to place your bets.";
+				return;
+			}
+
+			// Total round cost is number of selected outcomes times per-bet cost.
+			const totalBet = selectedBets.size * betCost;
+
+			// Stop if wallet cannot cover this round's bet cost.
+			if (balance < totalBet) {
+				statusText.textContent = "Not enough coins. Refresh page to restart balance.";
+				return;
+			}
+
+			// Charge bet cost, then roll all dice.
+			balance -= totalBet;
+			const labels = rollAllDice();
+			// Track rolled outcomes in frequency stats.
+			updateOutcomeCounts(labels);
+
+			// Evaluate hits and winnings against current selected bets.
+			const selectedList = [...selectedBets];
+			const { totalHits, winCoins, hitSummary } = calculateBetResult(labels, selectedList);
+			// Credit winnings and refresh wallet text.
+			balance += winCoins;
+			balanceText.textContent = `Balance: ${balance} coins`;
+
+			// Render history row and status summary for this round.
+			renderRollHistory(labels, selectedList, hitSummary, winCoins);
+			renderRoundStatus(labels, selectedList, totalHits, totalBet, winCoins);
+		}
+
+		// Initial render and button binding on page load.
+		renderOutcomeList();
+		renderStats();
+		rollBtn.addEventListener("click", rollDice);
+	</script>
+</body>
+</html>
